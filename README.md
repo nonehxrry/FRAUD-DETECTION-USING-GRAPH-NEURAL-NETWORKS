@@ -1,4 +1,4 @@
-# 🕵️ Fraud Detection Using Graph Neural Networks
+# Fraud Detection Using Graph Neural Networks
 
 > **Portfolio-level project** | PyTorch Geometric · Heterogeneous GAT · Streamlit  
 > Dataset: [IEEE-CIS Fraud Detection](https://www.kaggle.com/c/ieee-fraud-detection)
@@ -10,7 +10,7 @@
 
 ---
 
-## 🎯 Project Overview
+## Project Overview
 
 This project converts the tabular IEEE-CIS fraud dataset into a **heterogeneous graph** and trains a **Graph Attention Network (GAT)** to detect fraudulent transactions. The key insight: fraudsters **reuse** cards, devices, and email domains — patterns invisible to row-by-row ML but obvious in graph structure.
 
@@ -25,7 +25,7 @@ This project converts the tabular IEEE-CIS fraud dataset into a **heterogeneous 
 
 ---
 
-## 🏗️ Graph Architecture
+## Graph Architecture
 
 ```
 Nodes:
@@ -47,7 +47,7 @@ How Fraud Rings Are Caught (3-hop example):
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 fraud_gnn/
@@ -78,7 +78,7 @@ fraud_gnn/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Setup
 
@@ -183,7 +183,7 @@ This generates an interactive HTML graph you can open in a browser.
 
 ---
 
-## 🧠 Model Details
+## Model Details
 
 ### Graph Attention Network (GAT)
 
@@ -217,7 +217,7 @@ loss = CrossEntropyLoss(weight=[w0, w1])
 
 ---
 
-## 🔍 Explainability
+## Explainability
 
 ### Per-Transaction Explanation (GNNExplainer)
 
@@ -245,7 +245,7 @@ clusters = detect_fraud_clusters(G, fraud_probs, threshold=0.5)
 
 ---
 
-## ☁️ Deployment
+## Deployment
 
 ### Streamlit Cloud
 
@@ -281,7 +281,7 @@ docker run -p 8501:8501 fraud-gnn
 
 ---
 
-## 📎 GitHub Portfolio Setup
+## GitHub Portfolio Setup
 
 ```bash
 # Initialize repo
@@ -309,7 +309,7 @@ git push -u origin main
 
 ---
 
-## 📝 Resume Bullets
+## Resume Bullets
 
 ```
 • Architected a production-grade fraud detection system using Heterogeneous Graph
@@ -330,7 +330,7 @@ git push -u origin main
 
 ---
 
-## 🏆 What Makes This Top 5%
+## What Makes This Top 5%
 
 1. **Heterogeneous graph** (not homogeneous) — most Kaggle solutions use flat features
 2. **GNNExplainer** — interpretability is rare in competition notebooks
@@ -354,7 +354,7 @@ git push -u origin main
 
 ---
 
-## 📚 References
+## References
 
 - [IEEE-CIS Fraud Detection Dataset](https://www.kaggle.com/c/ieee-fraud-detection)
 - [PyTorch Geometric Documentation](https://pytorch-geometric.readthedocs.io)
