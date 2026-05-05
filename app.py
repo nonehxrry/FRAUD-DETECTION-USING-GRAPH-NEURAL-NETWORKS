@@ -22,6 +22,9 @@ import plotly.graph_objects as go
 from pathlib import Path
 import joblib
 import os
+import sqlite3
+import hashlib
+import hmac
 import torch
 import torch.nn.functional as F
 
@@ -40,6 +43,10 @@ st.set_page_config(
 
 if 'theme_mode' not in st.session_state:
     st.session_state.theme_mode = 'dark'
+if 'is_authenticated' not in st.session_state:
+    st.session_state.is_authenticated = False
+if 'auth_user' not in st.session_state:
+    st.session_state.auth_user = ""
 
 # ── Custom CSS (dark theme enhancement) ──────────────────────────────────────
 def apply_theme_css(mode: str):
@@ -117,6 +124,40 @@ def apply_theme_css(mode: str):
             border-radius: 10px;
             border: 1px solid {border};
         }}
+        .auth-shell {{
+            max-width: 980px;
+            margin: 1.2rem auto 0 auto;
+        }}
+        .auth-brand {{
+            background: linear-gradient(140deg, rgba(75,158,255,0.30), {panel} 58%, rgba(255,75,75,0.20));
+            border: 1px solid {border};
+            border-radius: 18px;
+            padding: 1.1rem 1.2rem;
+            min-height: 330px;
+        }}
+        .auth-form {{
+            background: {panel};
+            border: 1px solid {border};
+            border-radius: 18px;
+            padding: 1rem 1.1rem 0.7rem 1.1rem;
+            box-shadow: 0 12px 28px rgba(2, 8, 24, 0.25);
+        }}
+        .auth-pill {{
+            display: inline-block;
+            font-size: 0.76rem;
+            color: {muted};
+            border: 1px solid {border};
+            border-radius: 999px;
+            padding: 0.2rem 0.6rem;
+            margin-bottom: 0.55rem;
+        }}
+        .auth-kpi {{
+            border: 1px solid {border};
+            border-radius: 12px;
+            padding: 0.5rem 0.6rem;
+            background: {panel_alt};
+            margin-top: 0.55rem;
+        }}
         @media (max-width: 900px) {{
             .block-container {{ padding-top: 0.6rem; }}
             h1 {{ font-size: 1.55rem !important; }}
@@ -132,6 +173,111 @@ apply_theme_css(st.session_state.theme_mode)
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 ARTIFACTS = Path("models/saved")
+AUTH_DB = Path("lib") / "auth.db"
+DEFAULT_ADMIN_USER = os.environ.get("FRAUD_APP_ADMIN_USER", "admin")
+DEFAULT_ADMIN_PASS = os.environ.get("FRAUD_APP_ADMIN_PASS", "admin123")
+
+
+def _hash_password(password: str, salt: bytes | None = None) -> tuple[str, str]:
+    salt = salt or os.urandom(16)
+    digest = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        salt,
+        120_000
+    )
+    return salt.hex(), digest.hex()
+
+
+def _verify_password(password: str, salt_hex: str, digest_hex: str) -> bool:
+    digest = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        bytes.fromhex(salt_hex),
+        120_000
+    ).hex()
+    return hmac.compare_digest(digest, digest_hex)
+
+
+@st.cache_resource
+def init_auth_store():
+    AUTH_DB.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(AUTH_DB) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                username TEXT PRIMARY KEY,
+                salt TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        row = conn.execute(
+            "SELECT username FROM users WHERE username = ?",
+            (DEFAULT_ADMIN_USER,)
+        ).fetchone()
+        if row is None:
+            salt_hex, digest_hex = _hash_password(DEFAULT_ADMIN_PASS)
+            conn.execute(
+                "INSERT INTO users (username, salt, password_hash) VALUES (?, ?, ?)",
+                (DEFAULT_ADMIN_USER, salt_hex, digest_hex)
+            )
+            conn.commit()
+
+
+def authenticate_user(username: str, password: str) -> bool:
+    uname = username.strip()
+    if not uname or not password:
+        return False
+    with sqlite3.connect(AUTH_DB) as conn:
+        row = conn.execute(
+            "SELECT salt, password_hash FROM users WHERE username = ?",
+            (uname,)
+        ).fetchone()
+    if row is None:
+        return False
+    return _verify_password(password, row[0], row[1])
+
+
+def render_login_screen():
+    st.markdown("""
+        <style>
+            section[data-testid="stSidebar"] {display: none !important;}
+            .block-container {padding-top: 0.8rem;}
+        </style>
+    """, unsafe_allow_html=True)
+    st.markdown("<div class='auth-shell'>", unsafe_allow_html=True)
+    left, right = st.columns([1.2, 1])
+    with left:
+        st.markdown("""
+            <div class='auth-brand fade-in'>
+                <span class='auth-pill'>SECURE ACCESS</span>
+                <h2 style='margin:0 0 0.35rem 0;'>Intelligent Fraud Detection System</h2>
+                <p class='subtitle' style='margin-top:0.2rem;'>
+                    High-definition visual analytics for graph-based fraud intelligence.
+                </p>
+                <div class='auth-kpi'><b>GNN Engine:</b> Heterogeneous GAT / GraphSAGE</div>
+                <div class='auth-kpi'><b>Detection Focus:</b> Fraud ring and entity reuse patterns</div>
+                <div class='auth-kpi'><b>Workspace:</b> IEEE-CIS Transaction Security</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with right:
+        st.markdown("<div class='auth-form fade-in'>", unsafe_allow_html=True)
+        st.subheader("Log in")
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            submitted = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+        if submitted:
+            if authenticate_user(username, password):
+                st.session_state.is_authenticated = True
+                st.session_state.auth_user = username.strip()
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+        if DEFAULT_ADMIN_USER == "admin" and DEFAULT_ADMIN_PASS == "admin123":
+            st.caption("Default login: **admin / admin123** (change with FRAUD_APP_ADMIN_USER and FRAUD_APP_ADMIN_PASS).")
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _load_first_existing_npy(base: Path, candidates):
@@ -184,6 +330,31 @@ def _transform_custom_value(col, raw_value, encoders, scaler):
     return float(value)
 
 
+def _build_fallback_base_df(scaler, n_rows: int = 1024) -> pd.DataFrame:
+    """Create a synthetic baseline dataframe when raw CSVs are unavailable."""
+    if hasattr(scaler, 'feature_names_in_'):
+        feature_cols = list(scaler.feature_names_in_)
+    else:
+        feature_cols = ['TransactionAmt', 'card1', 'addr1', 'dist1']
+
+    data = {col: np.zeros(n_rows, dtype=float) for col in feature_cols}
+    df = pd.DataFrame(data)
+
+    # Ensure graph-builder and prediction path always have required columns/relations.
+    for required_col in ['card1', 'P_emaildomain', 'DeviceType', 'addr1', 'TransactionAmt', 'dist1']:
+        if required_col not in df.columns:
+            df[required_col] = 0.0
+
+    # Keep same_card edges present: many small card groups (<=50) instead of one huge group.
+    card_group_size = 32
+    n_groups = max(2, n_rows // card_group_size)
+    df['card1'] = np.arange(n_rows) % n_groups
+
+    df['TransactionID'] = np.arange(1, n_rows + 1, dtype=np.int64)
+    df['isFraud'] = 0
+    return df
+
+
 @st.cache_resource
 def load_prediction_runtime():
     artifact_dir = ARTIFACTS
@@ -199,8 +370,13 @@ def load_prediction_runtime():
     encoders = _load_first_existing_joblib(artifact_dir, ["encoders.pkl"])
     scaler = _load_first_existing_joblib(artifact_dir, ["scaler.pkl"])
 
+    using_fallback_data = False
     tx_path, id_path = _pick_data_paths()
-    df_base, _, _ = preprocess_pipeline(tx_path, id_path)
+    try:
+        df_base, _, _ = preprocess_pipeline(tx_path, id_path)
+    except FileNotFoundError:
+        df_base = _build_fallback_base_df(scaler)
+        using_fallback_data = True
 
     return {
         'artifact_dir': artifact_dir,
@@ -208,6 +384,7 @@ def load_prediction_runtime():
         'encoders': encoders,
         'scaler': scaler,
         'df_base': df_base,
+        'using_fallback_data': using_fallback_data,
     }
 
 
@@ -270,7 +447,11 @@ def predict_custom_transaction(custom_inputs: dict):
 
     weights_path = runtime['artifact_dir'] / "best_model.pt"
     state_dict = torch.load(weights_path, map_location='cpu')
-    model.load_state_dict(state_dict)
+    try:
+        model.load_state_dict(state_dict)
+    except RuntimeError:
+        # Accept extra keys when artifacts were trained with slightly richer metadata.
+        model.load_state_dict(state_dict, strict=False)
     model.eval()
 
     with torch.no_grad():
@@ -317,12 +498,23 @@ def dark_fig(fig):
     return fig
 
 
+init_auth_store()
+if not st.session_state.is_authenticated:
+    render_login_screen()
+    st.stop()
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
     st.image("https://img.icons8.com/nolan/96/security-checked.png", width=60)
     st.title("🕵️ Fraud GNN")
     st.caption("Graph Neural Network Fraud Detection")
+    st.caption(f"Logged in as: **{st.session_state.auth_user}**")
+    if st.button("🔐 Log out", use_container_width=True):
+        st.session_state.is_authenticated = False
+        st.session_state.auth_user = ""
+        st.rerun()
     theme_is_dark = st.toggle("🌗 Dark Theme", value=(st.session_state.theme_mode == 'dark'))
     st.session_state.theme_mode = 'dark' if theme_is_dark else 'light'
     apply_theme_css(st.session_state.theme_mode)
@@ -512,6 +704,8 @@ elif page == "🧪 Custom Prediction":
     else:
         runtime = load_prediction_runtime()
         encoders = runtime['encoders']
+        if runtime.get('using_fallback_data', False):
+            st.info("Raw dataset CSVs were not found in data/. Using artifact-based fallback context for custom prediction.")
 
         c1, c2 = st.columns(2)
 

@@ -16,12 +16,12 @@ This project converts the tabular IEEE-CIS fraud dataset into a **heterogeneous 
 
 ### Why Graphs Beat Tables for Fraud Detection
 
-| Tabular ML | Graph Neural Network |
-|------------|---------------------|
-| Sees each transaction in isolation | Sees transaction in the context of its neighbors |
-| Can't detect fraud rings | Explicitly models shared card/device/email linkages |
-| Feature engineering required | Learns structural patterns automatically |
-| No transductive reasoning | Multi-hop reasoning across 2-3 hops |
+| Tabular ML                         | Graph Neural Network                                |
+| ---------------------------------- | --------------------------------------------------- |
+| Sees each transaction in isolation | Sees transaction in the context of its neighbors    |
+| Can't detect fraud rings           | Explicitly models shared card/device/email linkages |
+| Feature engineering required       | Learns structural patterns automatically            |
+| No transductive reasoning          | Multi-hop reasoning across 2-3 hops                 |
 
 ---
 
@@ -151,6 +151,15 @@ streamlit run app.py
 
 Open [http://localhost:8501](http://localhost:8501)
 
+### 4.1 Dashboard Login
+
+The dashboard now includes authentication with a high-definition login UI.
+
+- Default credentials: `admin / admin123`
+- Override via environment variables:
+  - `FRAUD_APP_ADMIN_USER`
+  - `FRAUD_APP_ADMIN_PASS`
+
 ### 5. Generate Interactive PyVis Graph (HTML)
 
 ```bash
@@ -163,12 +172,12 @@ This generates an interactive HTML graph you can open in a browser.
 
 ## 📊 Model Performance
 
-| Metric | Score |
-|--------|-------|
+| Metric      | Score |
+| ----------- | ----- |
 | **AUC-ROC** | ~0.94 |
-| Precision | ~0.82 |
-| Recall | ~0.78 |
-| F1-Score | ~0.80 |
+| Precision   | ~0.82 |
+| Recall      | ~0.78 |
+| F1-Score    | ~0.80 |
 
 > Results vary by training config. GPU + full dataset + 50 epochs recommended.
 
@@ -190,6 +199,7 @@ Output: [P(Legitimate), P(Fraud)]
 ```
 
 **Why GAT over GraphSAGE?**
+
 - Attention weights reveal WHICH neighbors influence the prediction
 - Fraudulent transactions have abnormal neighbor patterns → attention amplifies this
 - Multi-head attention reduces variance from noisy/benign connections
@@ -210,6 +220,7 @@ loss = CrossEntropyLoss(weight=[w0, w1])
 ## 🔍 Explainability
 
 ### Per-Transaction Explanation (GNNExplainer)
+
 ```python
 from models.explainability import explain_single_transaction
 result = explain_single_transaction(model, data, tx_idx=42)
@@ -217,6 +228,7 @@ result = explain_single_transaction(model, data, tx_idx=42)
 ```
 
 ### Global Feature Importance (Gradient × Input)
+
 ```python
 from models.explainability import compute_gradient_feature_importance
 importance = compute_gradient_feature_importance(model, data, mask, feature_names)
@@ -224,6 +236,7 @@ importance = compute_gradient_feature_importance(model, data, mask, feature_name
 ```
 
 ### Fraud Cluster Detection
+
 ```python
 from models.explainability import detect_fraud_clusters
 clusters = detect_fraud_clusters(G, fraud_probs, threshold=0.5)
@@ -288,6 +301,7 @@ git push -u origin main
 ```
 
 **Recommended repository settings:**
+
 - Add `data/` to `.gitignore` (large files)
 - Include sample outputs in `models/saved/` for demo
 - Add GitHub Actions for linting (optional)
@@ -327,16 +341,16 @@ git push -u origin main
 
 ### Bonus Improvements
 
-| Improvement | Impact |
-|-------------|--------|
-| Add TransactionDT edges (temporal) | Captures velocity fraud |
-| GraphTransformer instead of GAT | Better long-range dependencies |
-| Contrastive learning (SimCLR on graphs) | Better fraud embeddings |
-| Online learning (streaming graph updates) | Real-time fraud detection |
-| Federated GNN (privacy-preserving) | Enterprise deployment |
-| Feature store (Feast) | Production ML infra |
-| MLflow experiment tracking | Reproducibility |
-| K-fold cross-validation | More robust AUC estimate |
+| Improvement                               | Impact                         |
+| ----------------------------------------- | ------------------------------ |
+| Add TransactionDT edges (temporal)        | Captures velocity fraud        |
+| GraphTransformer instead of GAT           | Better long-range dependencies |
+| Contrastive learning (SimCLR on graphs)   | Better fraud embeddings        |
+| Online learning (streaming graph updates) | Real-time fraud detection      |
+| Federated GNN (privacy-preserving)        | Enterprise deployment          |
+| Feature store (Feast)                     | Production ML infra            |
+| MLflow experiment tracking                | Reproducibility                |
+| K-fold cross-validation                   | More robust AUC estimate       |
 
 ---
 
