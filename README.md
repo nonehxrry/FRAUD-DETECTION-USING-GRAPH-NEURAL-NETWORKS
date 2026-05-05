@@ -1,4 +1,4 @@
-# 🕵️ Intelligent Fraud Detection Using Graph Neural Networks
+# 🕵️ Fraud Detection Using Graph Neural Networks
 
 > **Portfolio-level project** | PyTorch Geometric · Heterogeneous GAT · Streamlit  
 > Dataset: [IEEE-CIS Fraud Detection](https://www.kaggle.com/c/ieee-fraud-detection)
